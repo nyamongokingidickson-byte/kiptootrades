@@ -45,6 +45,7 @@ export default defineConfig({
                 GROWTHBOOK_CLIENT_KEY: JSON.stringify(process.env.GROWTHBOOK_CLIENT_KEY || ''),
                 GROWTHBOOK_DECRYPTION_KEY: JSON.stringify(process.env.GROWTHBOOK_DECRYPTION_KEY || ''),
                 VITE_APP_ID: JSON.stringify(process.env.VITE_APP_ID || ''),
+                VITE_DERIV_OAUTH_CLIENT_ID: JSON.stringify(process.env.VITE_DERIV_OAUTH_CLIENT_ID || ''),
             },
         },
     },

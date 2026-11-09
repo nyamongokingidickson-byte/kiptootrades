@@ -1,0 +1,52 @@
+name: Deriv trading smoke test
+
+# Proves the live trading path still works: authorize -> proposal -> buy -> portfolio.
+# Trigger manually from the Actions tab after adding a DEMO API token as the
+# DERIV_TOKEN repository secret (app.deriv.com/account/api-token → scope: trade).
+# The token never leaves GitHub's secret store.
+
+on:
+    workflow_dispatch:
+        inputs:
+            symbol:
+                description: 'Symbol to trade'
+                required: false
+                default: 'R_100'
+            stake:
+                description: 'Stake (demo account)'
+                required: false
+                default: '0.35'
+
+permissions:
+    contents: read
+
+jobs:
+    smoke:
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+
+            - name: Install ws
+              run: npm install --no-save --no-audit --no-fund ws
+
+            - name: Check secret
+              env:
+                  TOKEN: ${{ secrets.DERIV_TOKEN }}
+              run: |
+                  if [ -z "$TOKEN" ]; then
+                      echo "::error title=DERIV_TOKEN missing::Add a Deriv DEMO API token (trade scope) as the DERIV_TOKEN repository secret, then re-run."
+                      exit 1
+                  fi
+
+            - name: Run trading smoke test
+              env:
+                  DERIV_TOKEN: ${{ secrets.DERIV_TOKEN }}
+                  DERIV_APP_ID: ${{ vars.DERIV_APP_ID || '36300' }}
+                  DERIV_SYMBOL: ${{ inputs.symbol }}
+                  DERIV_STAKE: ${{ inputs.stake }}
+              run: node scripts/smoke-trade.mjs

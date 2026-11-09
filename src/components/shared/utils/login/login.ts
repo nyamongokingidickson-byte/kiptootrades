@@ -1,17 +1,60 @@
 import { website_name } from '@/utils/site-config';
-import { domain_app_ids, getAppId, getCurrentProductionDomain } from '../config/config';
+import { generatePKCE, generateState, storePKCEState } from '@/utils/pkce';
+import {
+    domain_app_ids,
+    getAppId,
+    getCurrentProductionDomain,
+    DERIV_OAUTH_CLIENT_ID,
+    DERIV_OAUTH_AUTHORIZE_URL,
+    getOAuthRedirectUri,
+} from '../config/config';
 import { CookieStorage, isStorageSupported, LocalStore } from '../storage/storage';
 import { getStaticUrl, urlForCurrentDomain } from '../url';
 import { deriv_urls } from '../url/constants';
+
+/**
+ * Builds the Deriv OIDC (auth.deriv.com) authorisation URL with PKCE.
+ * The redirect_uri is always `<origin>/callback` — the exact value registered for the
+ * OAuth client. Sending anything else (e.g. the current deep path) makes Deriv reject
+ * the request, and sending no redirect_uri at all makes it fall back to the client's
+ * default, landing the user on a different origin.
+ */
+export const oauthLoginUrl = async ({ language }: TLoginUrl) => {
+    const { code_verifier, code_challenge } = await generatePKCE();
+    const state = generateState();
+    storePKCEState(code_verifier, state);
+
+    const params = new URLSearchParams({
+        app_id: DERIV_OAUTH_CLIENT_ID,
+        l: language,
+        brand: website_name.toLowerCase(),
+        redirect_uri: getOAuthRedirectUri(),
+        response_type: 'code',
+        state,
+        code_challenge,
+        code_challenge_method: 'S256',
+    });
+
+    const url = `${DERIV_OAUTH_AUTHORIZE_URL}?${params.toString()}`;
+    console.log('[Login] OAuth authorize URL:', url);
+    return url;
+};
 
 export const redirectToLogin = (is_logged_in: boolean, language: string, has_params = true, redirect_delay = 0) => {
     if (!is_logged_in && isStorageSupported(sessionStorage)) {
         const l = window.location;
         const redirect_url = has_params ? window.location.href : `${l.protocol}//${l.host}${l.pathname}`;
         sessionStorage.setItem('redirect_url', redirect_url);
-        setTimeout(() => {
-            const new_href = loginUrl({ language });
-            window.location.href = new_href;
+        setTimeout(async () => {
+            try {
+                const new_href = DERIV_OAUTH_CLIENT_ID
+                    ? await oauthLoginUrl({ language })
+                    : loginUrl({ language });
+                window.location.href = new_href;
+            } catch (error) {
+                console.error('[Login] Failed to start OAuth flow, falling back to legacy login:', error);
+                window.location.href = loginUrl({ language });
+            }
         }, redirect_delay);
     }
 };
@@ -34,11 +77,8 @@ export const loginUrl = ({ language }: TLoginUrl) => {
         date_first_contact ? `&date_first_contact=${date_first_contact}` : ''
     }`;
     const getOAuthUrl = () => {
-        // Special strict fix for Vercel Production to avoid any dynamic parameter issues
-        if (['dylantrades.vercel.app', 'dylantrades.site'].includes(window.location.hostname)) {
-            return `https://oauth.deriv.com/oauth2/authorize?app_id=121856&l=${language}&brand=deriv`;
-        }
-
+        // NOTE: the OIDC flow (auth.deriv.com) is handled by oauthLoginUrl() above.
+        // oauth.deriv.com/oauth2/authorize now 301s to deriv.com and cannot complete a login.
         const current_domain = getCurrentProductionDomain();
         let oauth_domain = deriv_urls.DERIV_HOST_NAME;
 
