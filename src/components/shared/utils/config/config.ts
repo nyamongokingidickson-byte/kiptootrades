@@ -6,6 +6,40 @@ export const DERIV_NEW_TOKEN_URL = 'https://auth.deriv.com/oauth2/token';
 export const API_MODE: 'legacy' | 'new' = 'legacy';
 
 /**
+ * Which API stack the session can actually use.
+ *
+ * The bot engine trades over the legacy Deriv WebSocket, which is authorised with an
+ * API token stored in `authToken`. The OAuth/OIDC login stores a Bearer token in
+ * `new_api_access_token` instead. Picking the stack from the stored credentials (rather
+ * than the constant above) is what stops a logged-in user from running a bot that has
+ * no trading permission: previously the build was pinned to 'legacy', so an OIDC session
+ * produced ticks but every buy was rejected.
+ */
+export const getApiMode = (): 'legacy' | 'new' => {
+    try {
+        const stored = window.localStorage.getItem('API_MODE');
+        const has_legacy_token = !!window.localStorage.getItem('authToken');
+        const has_new_token = !!window.localStorage.getItem('new_api_access_token');
+
+        if (has_legacy_token && !has_new_token) return 'legacy';
+        if (has_new_token && !has_legacy_token) return 'new';
+        if (has_legacy_token && has_new_token) return stored === 'new' ? 'new' : 'legacy';
+        return stored === 'new' ? 'new' : API_MODE;
+    } catch {
+        return API_MODE;
+    }
+};
+
+/** True when a session exists but the trading socket has no permission to place trades. */
+export const hasTradingCredentials = () => {
+    try {
+        return !!window.localStorage.getItem('authToken') || !!window.localStorage.getItem('new_api_access_token');
+    } catch {
+        return false;
+    }
+};
+
+/**
  * OAuth2 client used for the Deriv OIDC login flow (auth.deriv.com).
  * Overridable per-deployment with VITE_DERIV_OAUTH_CLIENT_ID.
  * The redirect URI registered for this client must be `<origin>/callback`,

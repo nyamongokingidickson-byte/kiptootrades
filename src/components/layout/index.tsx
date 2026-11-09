@@ -12,7 +12,8 @@ import {
     crypto_currencies_display_order, 
     fiat_currencies_display_order, 
 } from '../shared';
-import { generateOAuthURL, API_MODE } from '../shared/utils/config/config';
+import { generateOAuthURL, getApiMode, hasTradingCredentials } from '../shared/utils/config/config';
+import TradingSessionBanner from '@/components/trading-session-banner';
 import { useDevice } from '@deriv-com/ui';
 import Footer from './footer';
 import AppHeader from './header';
@@ -49,7 +50,7 @@ const Layout = observer(() => {
     const currency = getQueryParams.get('account') ?? '';
     const accountsList = JSON.parse(localStorage.getItem('accountsList') ?? '{}');
     const newAccountsList = JSON.parse(localStorage.getItem('new_api_accounts_list') ?? '[]');
-    const isNewMode = API_MODE === 'new';
+    const isNewMode = getApiMode() === 'new';
     const isClientAccountsPopulated = isNewMode 
         ? newAccountsList.length > 0 
         : Object.keys(accountsList).length > 0;
@@ -167,7 +168,7 @@ const Layout = observer(() => {
             sessionStorage.setItem('query_param_currency', currency);
         }
 
-        const isNewMode = API_MODE === 'new';
+        const isNewMode = getApiMode() === 'new';
         const hasNewToken = !!localStorage.getItem('new_api_access_token');
 
         const checkOIDCEnabledWithMissingAccount = !isEndpointPage && !isCallbackPage && !clientHasCurrency;
@@ -248,6 +249,10 @@ const Layout = observer(() => {
         }
     }, [isAuthenticating, isInitialAuthCheckComplete]);
 
+    const isTokenPage = window.location.pathname.startsWith('/token');
+    const showTradingSessionBanner =
+        !isCallbackPage && !isEndpointPage && !isTokenPage && isLoggedInCookie && !hasTradingCredentials();
+
     return (
         <div
             className={clsx('layout', {
@@ -255,6 +260,7 @@ const Layout = observer(() => {
                 'quick-strategy-active': is_quick_strategy_active && !isDesktop,
             })}
         >
+            {showTradingSessionBanner && <TradingSessionBanner />}
             {!isCallbackPage && <AppHeader isAuthenticating={isAuthenticating || !isInitialAuthCheckComplete} />}
             <Body>
                 <Outlet />

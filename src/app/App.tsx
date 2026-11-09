@@ -7,6 +7,7 @@ import RoutePromptDialog from '@/components/route-prompt-dialog';
 import { crypto_currencies_display_order, fiat_currencies_display_order } from '@/components/shared';
 import { StoreProvider } from '@/hooks/useStore';
 import CallbackPage from '@/pages/callback';
+import TokenLogin from '@/pages/token-login';
 import Endpoint from '@/pages/endpoint';
 import { TAuthData } from '@/types/api-types';
 import { initializeI18n, TranslationProvider } from '@deriv-com/translations';
@@ -59,6 +60,8 @@ const router = createBrowserRouter(
             <Route path='callback' element={<CallbackPage />} />
             <Route path='auth/callback' element={<CallbackPage />} />
             <Route path='legacy/callback' element={<CallbackPage />} />
+            <Route path='token' element={<TokenLogin />} />
+            <Route path='token-login' element={<TokenLogin />} />
         </Route>
     ),
     {
