@@ -6,7 +6,7 @@ on:
             - arena/6a261a6d-kiptootrades
         paths:
             - '.github/workflows/deriv-probe.yml'
-            - 'scripts/deriv-probe.mjs'
+            - 'scripts/**'
     workflow_dispatch:
 
 permissions:
@@ -47,11 +47,11 @@ jobs:
                   npm install --no-save --no-audit --no-fund ws >/dev/null 2>&1
                   node scripts/deriv-probe.mjs
 
-            - name: Live bundle auth probe
+            - name: OAuth client redirect probe
               run: |
                   exec > >(tee -a probe-output.txt) 2>&1
-                  chmod +x scripts/bundle-probe.sh
-                  bash scripts/bundle-probe.sh
+                  chmod +x scripts/oauth-probe.sh
+                  bash scripts/oauth-probe.sh
 
             - name: Commit findings
               run: |
