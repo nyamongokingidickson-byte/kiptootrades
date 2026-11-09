@@ -46,3 +46,5 @@ lerna-debug.log*
 .ai-rules.md
 .vercel
 .gemini/
+# local build output
+dist/
