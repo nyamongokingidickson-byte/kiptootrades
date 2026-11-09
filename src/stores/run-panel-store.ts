@@ -5,7 +5,8 @@ import { isSafari, mobileOSDetect, standalone_routes } from '@/components/shared
 import { redirectToSignUp } from '@/components/shared';
 import { contract_stages, TContractStage } from '@/constants/contract-stage';
 import { run_panel } from '@/constants/run-panel';
-import { ErrorTypes, MessageTypes, observer, unrecoverable_errors } from '@/external/bot-skeleton';
+import { api_base, ErrorTypes, MessageTypes, observer, unrecoverable_errors } from '@/external/bot-skeleton';
+import { getApiMode, hasTradingCredentials } from '@/components/shared/utils/config/config';
 import { getSelectedTradeType } from '@/external/bot-skeleton/scratch/utils';
 // import { journalError, switch_account_notification } from '@/utils/bot-notifications';
 import GTM from '@/utils/gtm';
@@ -191,6 +192,69 @@ export default class RunPanelStore {
         this.dbot.unHighlightAllBlocks();
         if (!client.is_logged_in) {
             this.showLoginDialog();
+            return;
+        }
+
+        /**
+         * Being logged in is not the same as being allowed to trade.
+         *
+         * An OAuth/OIDC login only stores a Bearer token (`new_api_access_token`), while the bot
+         * engine trades over the legacy socket that is authorised by an API token (`authToken`).
+         * In that state the bot used to start, stream ticks and never place a single trade, with
+         * nothing shown to the user. Refuse to start and say why instead.
+         */
+        if (!hasTradingCredentials()) {
+            (this.core as unknown as { common?: { setError: (has_error: boolean, error: object) => void } }).common?.setError(
+                true,
+                {
+                    header: localize('No trading permission'),
+                    message: localize(
+                        'You are signed in, but this session cannot place trades. Log in with a Deriv API token (Read + Trade scopes) and run your bot again.'
+                    ),
+                    redirect_label: localize('Log in with API token'),
+                    redirect_to: '/token',
+                    should_redirect: true,
+                    should_clear_error_on_click: true,
+                }
+            );
+            this.unregisterBotListeners();
+            return;
+        }
+
+        if (!api_base.is_authorized) {
+            // The socket may still be authorising right after a page load — give it a moment
+            // before treating it as a failure.
+            const authorisation_deadline = Date.now() + 4000;
+            // eslint-disable-next-line no-await-in-loop
+            while (!api_base.is_authorized && Date.now() < authorisation_deadline) {
+                // eslint-disable-next-line no-await-in-loop
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+        }
+
+        console.info('[Run] API diagnostics', {
+            mode: getApiMode(),
+            has_auth_token: !!localStorage.getItem('authToken'),
+            has_bearer_token: !!localStorage.getItem('new_api_access_token'),
+            is_authorized: api_base.is_authorized,
+            socket_state: api_base.api?.connection?.readyState,
+        });
+
+        if (!api_base.is_authorized) {
+            (this.core as unknown as { common?: { setError: (has_error: boolean, error: object) => void } }).common?.setError(
+                true,
+                {
+                    header: localize('Not connected to Deriv'),
+                    message: localize(
+                        'The trading connection is not authorised, so your bot cannot place trades. Refresh the page, or log in again with an API token.'
+                    ),
+                    redirect_label: localize('Log in with API token'),
+                    redirect_to: '/token',
+                    should_redirect: true,
+                    should_clear_error_on_click: true,
+                }
+            );
+            this.unregisterBotListeners();
             return;
         }
 

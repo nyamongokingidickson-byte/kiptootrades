@@ -67,3 +67,39 @@ If step 2 fails with `InvalidToken`, the token is wrong/expired. If step 5 fails
 `ContractBuyValidationError` or `AuthorizationRequired`, the token lacks the **trade** scope or
 the account cannot trade that symbol. Those are the same errors the bot UI surfaces, so a green
 run here means the bot path is healthy.
+
+---
+
+## 5. Root cause of "clicking Run does nothing" (found 2026-11-09)
+
+**Symptom:** in the bot builder, pressing Run starts the bot but no trade is ever placed.
+
+**Cause — two login worlds, one trading socket:**
+
+| | what it stores | which socket the bot uses |
+| --- | --- | --- |
+| OAuth / OIDC login (the "Log in" button) | `new_api_access_token` (Bearer) | legacy socket, which only authorises from `authToken` |
+| API-token login | `authToken` | legacy socket — authorised |
+
+`API_MODE` was **hard-coded to `'legacy'`**, so an OIDC session got:
+- `client.setIsLoggedIn(true)` (the account list populates the header), so Run was allowed,
+- ticks streaming over the public socket, so the bot looked alive,
+- and **zero trading permission** — every `buy` was rejected, silently.
+
+Nothing told the user, and no credential was ever written to `authToken`, so `initLegacyApi()`
+skipped `authorizeAndSubscribe()` entirely.
+
+**Fixes shipped:**
+
+1. `getApiMode()` — the stack is now chosen from the credentials actually present, not the constant.
+2. `/token` (and `/token-login`) — logs in with a Deriv API token: validates via `authorize`,
+   writes `authToken` + account list + cookie, forces `API_MODE=legacy`, redirects to the app.
+   Also accepts `/token?token=a1-…`.
+3. Run is now **blocked with an explanation** when the session has no trading permission, instead
+   of failing silently, with a button straight to `/token`. A banner across the app does the same
+   for anyone signed in without trade rights.
+4. `[Run] API diagnostics` is logged on every run (mode, token presence, authorised, socket state).
+
+**To trade right now:** open `https://dylantrades.site/token`, paste an API token created at
+app.deriv.com/account/api-token with **Read + Trade** scopes (use a demo account token first),
+then run the bot from the builder.

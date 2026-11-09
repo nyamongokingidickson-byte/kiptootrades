@@ -2,7 +2,7 @@ import { runInAction } from 'mobx';
 import Cookies from 'js-cookie';
 import CommonStore from '@/stores/common-store';
 import { TAuthData } from '@/types/api-types';
-import { API_MODE, getAppId } from '@/components/shared/utils/config/config';
+import { getApiMode, getAppId } from '@/components/shared/utils/config/config';
 import { clearAuthData } from '@/utils/auth-utils';
 import { observer as globalObserver } from '../../utils/observer';
 import { doUntilDone, socket_state } from '../tradeEngine/utils/helpers';
@@ -50,7 +50,7 @@ class APIBase {
     tradingApi: TApiBaseApi | null = null; // New Trading API (Authenticated)
 
     get api(): TApiBaseApi | null {
-        if (API_MODE === 'new') {
+        if (getApiMode() === 'new') {
             return this.tradingApi || this.publicApi;
         }
         return this._legacyApi;
@@ -108,7 +108,7 @@ class APIBase {
     async init(force_create_connection = false) {
         this.toggleRunButton(true);
 
-        if (API_MODE === 'new') {
+        if (getApiMode() === 'new') {
             await this.initNewApi(force_create_connection);
         } else {
             await this.initLegacyApi(force_create_connection);
@@ -441,7 +441,7 @@ class APIBase {
 
     async subscribe() {
         const subscribeToStream = (streamName: string) => {
-            const activeApi = API_MODE === 'new' ? this.tradingApi : this.api;
+            const activeApi = getApiMode() === 'new' ? this.tradingApi : this.api;
             
             return doUntilDone(
                 () => {
@@ -450,7 +450,7 @@ class APIBase {
                         subscribe: 1,
                         ...(streamName === 'balance' ? { account: 'all' } : {}),
                     });
-                    if (subscription && API_MODE === 'legacy') {
+                    if (subscription && getApiMode() === 'legacy') {
                         this.current_auth_subscriptions.push(subscription as SubscriptionPromise);
                     }
                     return subscription;
@@ -466,7 +466,7 @@ class APIBase {
     }
 
     getActiveSymbols = async () => {
-        const isNew = API_MODE === 'new';
+        const isNew = getApiMode() === 'new';
         let activeApi = isNew ? this.publicApi : this.api;
         
         // Robust wait for API initialization
@@ -536,7 +536,7 @@ class APIBase {
     }
 
     async measureLatency() {
-        if (API_MODE === 'new') {
+        if (getApiMode() === 'new') {
             const start = Date.now();
             try {
                 if (this.publicApi?.connection?.readyState === 1) {
