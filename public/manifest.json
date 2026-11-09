@@ -1,0 +1,21 @@
+{
+    "name": "DylanTrades",
+    "short_name": "DylanTrades",
+    "description": "DylanTrades offers a straightforward platform and ultimate trading tools for engaging in deriv markets.",
+    "id": "/",
+    "start_url": ".",
+    "display": "standalone",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "/assets/platform_logos/ic_platform_deriv_512x512.png",
+            "type": "image/png",
+            "sizes": "512x512"
+        }
+    ],
+    "background_color": "#414652",
+    "theme_color": "#414652",
+    "prefer_related_applications": false,
+    "gcm_user_visible_only": true,
+    "gcm_sender_id": "370236002280"
+}
