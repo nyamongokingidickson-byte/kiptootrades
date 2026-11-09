@@ -1,0 +1,88 @@
+name: Deploy to Vercel (production)
+
+# Keeps the live site (kiptootrades / dylantrades.site) in lockstep with the GitHub repo.
+# Requires ONE repository secret: VERCEL_TOKEN  (https://vercel.com/account/tokens)
+# Optional overrides: VERCEL_ORG_ID, VERCEL_PROJECT_ID — defaults are set below.
+
+on:
+    push:
+        branches:
+            - main
+    workflow_dispatch:
+
+concurrency:
+    group: vercel-production
+    cancel-in-progress: true
+
+permissions:
+    contents: read
+
+jobs:
+    deploy:
+        name: Build and deploy to production
+        runs-on: ubuntu-latest
+        timeout-minutes: 40
+        env:
+            VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID || 'team_GcCxHEyleTtU3vsRUkvqia9r' }}
+            VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID || 'prj_21Hj7hOx209vofPcxVIdW1ebVrAx' }}
+
+        steps:
+            - name: Check for VERCEL_TOKEN
+              id: token
+              env:
+                  TOKEN: ${{ secrets.VERCEL_TOKEN }}
+              run: |
+                  if [ -z "$TOKEN" ]; then
+                      echo "::notice title=Deploy skipped::Add a VERCEL_TOKEN repository secret to enable auto-deploy (see DEPLOYMENT.md)."
+                      echo "skip=true" >> "$GITHUB_OUTPUT"
+                  else
+                      echo "skip=false" >> "$GITHUB_OUTPUT"
+                  fi
+
+            - name: Checkout
+              if: steps.token.outputs.skip != 'true'
+              uses: actions/checkout@v4
+
+            - name: Setup Node
+              if: steps.token.outputs.skip != 'true'
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+                  cache: npm
+
+            - name: Install Vercel CLI
+              if: steps.token.outputs.skip != 'true'
+              run: npm install --global vercel@latest
+
+            - name: Pull Vercel project settings
+              if: steps.token.outputs.skip != 'true'
+              run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+              env:
+                  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+            - name: Build (rsbuild -> dist)
+              if: steps.token.outputs.skip != 'true'
+              run: vercel build --prod --token="$VERCEL_TOKEN"
+              env:
+                  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+            - name: Deploy to production
+              id: deploy
+              if: steps.token.outputs.skip != 'true'
+              run: |
+                  url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+                  echo "Deployed: $url"
+                  echo "url=$url" >> "$GITHUB_OUTPUT"
+              env:
+                  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+            - name: Summary
+              if: steps.token.outputs.skip != 'true'
+              run: |
+                  {
+                      echo "### Production deployment"
+                      echo ""
+                      echo "- URL: ${{ steps.deploy.outputs.url }}"
+                      echo "- Commit: \`${{ github.sha }}\`"
+                      echo "- Branch: \`${{ github.ref_name }}\`"
+                  } >> "$GITHUB_STEP_SUMMARY"
