@@ -1,7 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 import Cookies from 'js-cookie';
 import { generateDerivApiInstance } from '@/external/bot-skeleton/services/api/appId';
-import { getAppId } from '@/components/shared/utils/config/config';
+import {
+    DERIV_NEW_TOKEN_URL,
+    DERIV_OAUTH_CLIENT_ID,
+    getAppId,
+    getOAuthRedirectUri,
+} from '@/components/shared/utils/config/config';
+import { popPKCEVerifier, validatePKCEState } from '@/utils/pkce';
 import { clearAuthData } from '@/utils/auth-utils';
 import { useStore } from '@/hooks/useStore';
 import { observer } from 'mobx-react-lite';
@@ -67,7 +73,8 @@ const CallbackPage = observer(() => {
                 }
 
                 try {
-                    const redirect_uri = `${window.location.origin}/callback`;
+                    // must be byte-identical to the redirect_uri registered for the OAuth client
+                    const redirect_uri = getOAuthRedirectUri();
                     console.log('[OAuth2] Exchange Config:', {
                         client_id: DERIV_OAUTH_CLIENT_ID,
                         redirect_uri,

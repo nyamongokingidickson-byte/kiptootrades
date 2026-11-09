@@ -1,8 +1,22 @@
 import { isStaging } from '../url/helpers';
 
 export const DERIV_NEW_AUTH_URL = 'https://auth.deriv.com/oauth2/auth';
+export const DERIV_OAUTH_AUTHORIZE_URL = 'https://auth.deriv.com/oauth2/authorize';
 export const DERIV_NEW_TOKEN_URL = 'https://auth.deriv.com/oauth2/token';
 export const API_MODE: 'legacy' | 'new' = 'legacy';
+
+/**
+ * OAuth2 client used for the Deriv OIDC login flow (auth.deriv.com).
+ * Overridable per-deployment with VITE_DERIV_OAUTH_CLIENT_ID.
+ * The redirect URI registered for this client must be `<origin>/callback`,
+ * which is what `getOAuthRedirectUri()` produces.
+ */
+export const DERIV_OAUTH_CLIENT_ID = process.env.VITE_DERIV_OAUTH_CLIENT_ID || '343L8uHEkfWwA0GctDOSC';
+
+export const OAUTH_REDIRECT_PATH = '/callback';
+
+/** The redirect_uri sent to Deriv — must match the value registered for the OAuth client. */
+export const getOAuthRedirectUri = () => `${window.location.origin}${OAUTH_REDIRECT_PATH}`;
 
 export const APP_IDS = {
     LOCALHOST: 36300,
