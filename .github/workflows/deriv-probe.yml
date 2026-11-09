@@ -47,20 +47,11 @@ jobs:
                   npm install --no-save --no-audit --no-fund ws >/dev/null 2>&1
                   node scripts/deriv-probe.mjs
 
-            - name: Live site + bundle check
+            - name: Live bundle auth probe
               run: |
                   exec > >(tee -a probe-output.txt) 2>&1
-                  echo "## Live site probe — $(date -u)"
-                  for path in / /manifest.json /service-worker.js /callback; do
-                    printf "%-24s " "$path"
-                    curl -sS -o /dev/null -w "%{http_code} %{size_download}B\n" "https://www.dylantrades.site$path" || true
-                  done
-                  echo "--- entry bundle ---"
-                  curl -sS -o /tmp/entry.js -w "entry=%{http_code} %{size_download}B\n" "https://www.dylantrades.site/static/js/index.52e00649.js" || true
-                  echo "--- app_id strings in bundle ---"
-                  grep -oE 'app_id=[0-9]{3,7}' /tmp/entry.js | sort | uniq -c | sort -rn | head -10
-                  echo "--- numeric ids nearby 'oauth.deriv.com' ---"
-                  grep -oE 'oauth\.deriv\.com/oauth2/authorize\?app_id=[0-9]+' /tmp/entry.js | sort | uniq -c | head -10
+                  chmod +x scripts/bundle-probe.sh
+                  bash scripts/bundle-probe.sh
 
             - name: Commit findings
               run: |
